@@ -51,5 +51,6 @@ int main(int argc, const char * argv[]) {
 	printf("Image Creation Completed \n");
 	}
 	else printf("Unable to create an Image File \n");
+	free(image);
     return 0;
 }

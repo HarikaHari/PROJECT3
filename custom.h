@@ -16,7 +16,7 @@
 #include <math.h>
 
 //Pre Defined Values 
-#define ObjectsCount 20  //maximum number of JSON objects that can be parsed
+#define ObjectsCount 1024  //maximum number of JSON objects that can be parsed
 #define MAX_COLOR_VAL 255 //max value of RGB color 
 #define CAM 1
 #define SPH 2
@@ -70,7 +70,6 @@ typedef struct OBJECT{
         SPHERE sphere;
         PLANE plane;
         QUADRIC quadric;
-		LIGHT light;
     } data;
 } OBJECT;
 
@@ -105,13 +104,16 @@ double planeIntersection(double *Ro, double *Rd, double *Pos, double *Norm);
 double sphereIntersection(double *Ro, double *Rd, double *C, double r);
 double quadricIntersection (double *Ro, double *Rd, double *pos, double *coefficient);
 void raycast(Image *image, double cam_width, double cam_height, OBJECT *object);
+void computeIlluminationColor(Vector *Ro, Vector *Rd, int objIndex, double objDistance, double *pixelColor);
 
 //member functions for vector calculations
 double sqr(double v);
 double vectorLength(Vector a);
 void VectorAddition(Vector a, Vector b, Vector c);
 void VectorSubstraction(Vector a, Vector b, Vector c);
+void VectorCopy(Vector a, Vector b);
 double VectorDotProduct(Vector a, Vector b);
+void VectorReflection(Vector a, Vector b, Vector c);
 void normalize(double *v);
 
 #endif /* custom_h */

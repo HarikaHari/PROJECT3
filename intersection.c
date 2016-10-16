@@ -155,12 +155,13 @@ void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *obje
     
     Vector viewPlanePosition= {0,0,1}; //view plane position
     Vector Ro = {0,0,0}; //Camera position
+	Vector Rd = {0,0,0}; // ray direction
     Vector point = {0,0,0}; //initial point on view plane
     
     double pixheight = cameraHeight / image->height;
     double pixwidth = cameraWidth / image->width;
     
-    Vector Rd = {0,0,0}; // ray direction
+   
     point[2] = viewPlanePosition[2]; // set viewplane to Z direction
     
     for(x=0;x<image->height;x++){
@@ -172,8 +173,8 @@ void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *obje
             Rd[1] = point[1];
             Rd[2] = point[2];
             
-            int best_counter =0;
-            double best_t = INFINITY;
+            int objIndex =0;
+            double objDistance = INFINITY;
             for (counter=0; objects[counter].type!=0; counter++) {
                 double t =0;
                 switch (objects[counter].type) {
@@ -199,24 +200,19 @@ void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *obje
                     default:
                         exit(1);
                 }
-                if (t > 0 && t < best_t) {
-                    best_t = t;
-                    best_counter = counter;
+                if (t > 0 && t < objDistance) {
+                    objDistance = t;
+                    objIndex = counter;
                 }
                 
             }
-            if (best_t > 0 && best_t != INFINITY) {
+			  // use this to compute the final color of the pixel	
+			 double pixelColor[3] = [0,0,0];
+			 
+            if (objDistance > 0 && objDistance != INFINITY) {
 				//there is an intersection and applying color to the intersection pixel
-                if (objects[best_counter].type == PLN) {
-                    colorPixel(objects[best_counter].data.plane.specular_color, x, y, image);
-                }
-                else if (objects[best_counter].type == SPH){
-                    colorPixel(objects[best_counter].data.sphere.specular_color, x, y, image);
-                }
-				else if (objects[best_counter].type == QUAD){
-                    colorPixel(objects[best_counter].data.quadric.specular_color, x, y, image);
-                }
-                
+               computeIlluminationColor(&Ro,&Rd, objIndex, objDistance, pixelColor);
+               colorPixel(pixelColor, x, y, image); 
             }
             else{
 			//colouring the pixel to default color since there was no intersection
@@ -228,3 +224,78 @@ void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *obje
     }
     
 }
+
+
+//calculate the color of objects with illumination
+void computeIlluminationColor(Vector *Ro, Vector *Rd, int objIndex, double objDistance, double *pixelColor) {
+    
+	int i;
+	Vector light_Ro[3];
+    Vector light_Rd[3];
+    
+    // finding light rays Ro and Rd
+    VectorScale(Rd, objDistance, light_Ro);
+    VectorAddition(light_Ro, Ro, light_Ro);
+    
+    for (i=0; lights[i].color != NULL; i++) {
+        
+		double normal[3] = [0,0,0], diffuseTemp[3] = [0,0,0], specularTemp[3] = [0,0,0];
+		int lightIndex = -1, counter =0;  
+		double lightDistance = INFINITY;
+		
+        // find new ray direction
+        VectorSubstraction(lights[i].position, light_Ro, light_Rd);
+        double distance = vectorLength(light_Rd);       
+        
+            for (counter=0; objects[counter].type!=0; counter++) {
+                double t =0;
+                switch (objects[counter].type) {
+                    case 0:
+                        printf("no object found\n");
+                        break;
+                        
+                    case CAM:
+                        break;
+                        
+                    case SPH:
+                        t = sphereIntersection(light_Ro, light_Rd, objects[counter].data.sphere.position, objects[counter].data.sphere.radius);
+                        break;
+                        
+                    case PLN:
+                        t = planeIntersection(light_Ro, light_Rd, objects[counter].data.plane.position, objects[counter].data.plane.normal);
+                        break;
+						
+					case QUAD:
+                        t = quadricIntersection(light_Ro, light_Rd, objects[counter].data.quadric.position, objects[counter].data.quadric.coefficients);
+                        break;
+                        
+                    default:
+                        exit(1);
+                }
+                if (t > 0 && t < lightDistance) {
+                    lightDistance = t;
+                    lightIndex = counter;
+                }
+			}
+         // start of shadow test
+        if (lightIndex == -1) {
+           
+            if (objects[objIndex].type == PLN) {
+                VectorCopy(objects[objIndex].data.plane.normal, normal);
+                VectorCopy(objects[objIndex].data.plane.diff_color, diffuseTemp);
+                VectorCopy(objects[objIndex].data.plane.spec_color, specularTemp);
+            } else if (objects[objIndex].type == SPH) {
+                VectorSubstraction(light_Ro, objects[objIndex].data.sphere.position, normal);
+				VectorCopy(objects[objIndex].data.sphere.diff_color, diffuseTemp);
+                VectorCopy(objects[objIndex].data.sphere.spec_color, specularTemp);
+            } else {
+                fprintf(stderr, "Error: not a valid object\n");
+                exit(1);
+            }
+        }
+    }
+}
+
+
+
+

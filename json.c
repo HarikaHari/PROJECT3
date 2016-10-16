@@ -7,8 +7,8 @@
 
 int line = 1;  // global variable, it will tells us which line is not correct
 
-OBJECT objects[ObjectsCount]; // Array of All Objects in JSON File
-
+OBJECT objects[ObjectsCount]; // Array of All geometric Objects from JSON File
+LIGHT lights[ObjectsCount]; //Array of all light sources from JSON file
 
 //JSON PARSER CODE BY DR.PALMER START
 
@@ -85,11 +85,9 @@ char* next_string(FILE* json) {
 double next_number(FILE* json) {
     double value;
     fscanf(json, "%lf", &value);
-
-    // Error check this..
     if (value == NAN) {
         fprintf(stderr, "Error: Expected a number but found NAN: %d\n", line);
-        return -1;;
+        exit(1);
     }
     return value;
 }
@@ -101,26 +99,56 @@ double* parse_color(FILE* json) {
     skip_ws(json);
     expect_c(json, '[');
     skip_ws(json);
-    v[0] = MAX_COLOR_VAL * next_number(json);
+    v[0] =  next_number(json);
     skip_ws(json);
     expect_c(json, ',');
     skip_ws(json);
-    v[1] = MAX_COLOR_VAL * next_number(json);
+    v[1] = next_number(json);
     skip_ws(json);
     expect_c(json, ',');
     skip_ws(json);
-    v[2] = MAX_COLOR_VAL * next_number(json);
+    v[2] = next_number(json);
     skip_ws(json);
     expect_c(json, ']');
     // check that all values are valid
-    if ((v[0] < 0.0 || v[0] > MAX_COLOR_VAL) ||
-        (v[1] < 0.0 || v[1] > MAX_COLOR_VAL) ||
-        (v[2] < 0.0 || v[2] > MAX_COLOR_VAL)) {
+    if ((v[0] < 0.0 || v[0] > 1.0) ||
+        (v[1] < 0.0 || v[1] > 1.0) ||
+        (v[2] < 0.0 || v[2] > 1.0)) {
         fprintf(stderr, "Error: rgb value out of range: %d\n", line);
         exit(1);
     }
     return v;
 }
+
+//parse light color 
+double* parse_light_color(FILE* json) {
+    double* v = malloc(sizeof(double)*3);
+    skip_ws(json);
+    expect_c(json, '[');
+    skip_ws(json);
+    v[0] =  next_number(json);
+    skip_ws(json);
+    expect_c(json, ',');
+    skip_ws(json);
+    v[1] = next_number(json);
+    skip_ws(json);
+    expect_c(json, ',');
+    skip_ws(json);
+    v[2] = next_number(json);
+    skip_ws(json);
+    expect_c(json, ']');
+    // check that all values are valid
+    if ((v[0] < 0.0) ||
+        (v[1] < 0.0) ||
+        (v[2] < 0.0)) {
+        fprintf(stderr, "Error: rgb value out of range: %d\n", line);
+        exit(1);
+    }
+    return v;
+}
+
+
+
 // This function at here is for quadric
 double* nextCoefficient(FILE* json){
     
@@ -164,6 +192,7 @@ double* next_vector(FILE* json) {
 void read_scene(const char* filename) {
     FILE* json = fopen(filename, "r");
     int counter = 0;
+	int lightCounter = 0;
     if (json == NULL) {
         fprintf(stderr, "Error: Could not open file\n");
         exit(1);
@@ -193,7 +222,7 @@ void read_scene(const char* filename) {
         if (c == ']') {
             fprintf(stderr, "Error:  Unexpected ']': %d\n", line);
             fclose(json);
-            return;
+            exit(1);
         }
         if (c == '{') {     
             skip_ws(json);
@@ -223,6 +252,9 @@ void read_scene(const char* filename) {
                 object_type = QUAD;
                 objects[counter].type = QUAD;
 			}
+			else if (strcmp(type, "light") == 0)
+                object_type = LITE;
+            
             else {
                 exit(1);
             }
@@ -284,7 +316,7 @@ void read_scene(const char* filename) {
 					 else if (strcmp(key, "radial-a0")==0){
                         value = next_number(json);
                         if(value >= 0) {
-                            objects[counter].data.light.radial_a0 = value;
+                            lights[lightCounter].radial_a0 = value;
                         }
                         else {
 						fprintf(stderr, "Error: radial-a0 cannot be less than zero: %d\n", line);
@@ -294,7 +326,7 @@ void read_scene(const char* filename) {
                     else if (strcmp(key, "radial-a1")==0){
                         value = next_number(json);
 						 if(value >= 0) {
-                             objects[counter].data.light.radial_a1 = value;
+                             lights[lightCounter].radial_a1 = value;
                         }
                         else {
 						fprintf(stderr, "Error: radial-a1 cannot be less than zero: %d\n", line);
@@ -304,7 +336,7 @@ void read_scene(const char* filename) {
                     else if (strcmp(key, "radial-a2")==0){
                         value = next_number(json);
 						 if(value >= 0) {
-                             objects[counter].data.light.radial_a2 = value;
+                             lights[lightCounter].radial_a2 = value;
                         }
                         else {
 						fprintf(stderr, "Error: radial-a2 cannot be less than zero: %d\n", line);
@@ -315,7 +347,7 @@ void read_scene(const char* filename) {
                     else if (strcmp(key, "angular-a0")==0){
                         value = next_number(json);
 						if(value >= 0) {
-                             objects[counter].data.light.angular_a0 = value;
+                             lights[lightCounter].angular_a0 = value;
                         }
                         else {
 						fprintf(stderr, "Error: angular_a0 cannot be less than zero: %d\n", line);
@@ -325,7 +357,7 @@ void read_scene(const char* filename) {
 					
 					 else if (strcmp(key, "color") == 0) {
                         if (object_type == LITE)
-                            objects[counter].data.light.color = parse_color(json);
+                            lights[lightCounter].color = parse_light_color(json);
                         else {
                             fprintf(stderr, "Error: color vector can't be applied here: %d\n", line);
                             exit(1);
@@ -364,6 +396,8 @@ void read_scene(const char* filename) {
                             objects[counter].data.plane.position = next_vector(json);
                         else if (object_type == QUAD)
                             objects[counter].data.quadric.position = next_vector(json);
+                        else if (object_type == LITE)
+                            lights[lightCounter].position = next_vector(json);
                         
 						else {
                             fprintf(stderr, "Error: Position vector can't be applied here: %d\n", line);
@@ -418,8 +452,13 @@ void read_scene(const char* filename) {
                 exit(1);
             }
         }
+		 if (object_type == LITE) 
+            lightCounter++;
+        
+        else
+            counter++;
+        
         c = next_c(json);
-        counter++;
     }
 	
 //JSON PARSER CODE BY DR.PALMER END	

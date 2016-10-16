@@ -13,11 +13,11 @@ double vectorLength(Vector a){
     return sqrt(sqr(a[0])+sqr(a[1])+sqr(a[2]));
 }
 
-void vectorUnit(Vector in, Vector out){
-    double len = vectorLength(in);
-    out[0] = in[0]/len;
-    out[1] = in[1]/len;
-    out[2] = in[2]/len;
+void vectorUnit(Vector a, Vector b){
+    double len = vectorLength(a);
+    b[0] = a[0]/len;
+    b[1] = a[1]/len;
+    b[2] = a[2]/len;
     
 }
 
@@ -33,8 +33,29 @@ void VectorSubstraction(Vector a, Vector b, Vector c){
     c[2] = a[2] - b[2];
 }
 
+void VectorCopy(Vector a, Vector b){
+    b[0] = a[0];
+    b[1] = a[1];
+    b[2] = a[2];
+}
+
 double VectorDotProduct(Vector a, Vector b){
     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+
+void VectorScale(Vector a, double s, Vector b){
+    b[0] = s * a[0];
+    b[1] = s * a[1];
+    b[2] = s * a[2];
+}
+
+void VectorReflection(Vector a, Vector b, Vector c){
+    normalize(b);
+    double p = 2.0 * VectorDotProduct(a, b);
+    Vector new;
+    VectorScale(b, p, new);
+    VectorSubstraction(a, new, c);
 }
 
 void normalize(double *v) {
