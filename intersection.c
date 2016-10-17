@@ -149,7 +149,7 @@ double quadricIntersection (double *Ro, double *Rd, double *pos, double *coeffic
     }		
 }
 
-void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *objects){
+void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *objects, LIGHT *lights) {
    
     int x, y, counter; 
     
@@ -207,11 +207,11 @@ void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *obje
                 
             }
 			  // use this to compute the final color of the pixel	
-			 double pixelColor[3] = [0,0,0];
+			 double pixelColor[3] = {0,0,0};
 			 
             if (objDistance > 0 && objDistance != INFINITY) {
 				//there is an intersection and applying color to the intersection pixel
-               computeIlluminationColor(&Ro,&Rd, objIndex, objDistance, pixelColor);
+               computeIlluminationColor(Ro, Rd, objIndex, objDistance, pixelColor, objects, lights);
                colorPixel(pixelColor, x, y, image); 
             }
             else{
@@ -227,11 +227,11 @@ void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *obje
 
 
 //calculate the color of objects with illumination
-void computeIlluminationColor(Vector *Ro, Vector *Rd, int objIndex, double objDistance, double *pixelColor) {
+void computeIlluminationColor(Vector Ro, Vector Rd, int objIndex, double objDistance, double *pixelColor, OBJECT *objects, LIGHT *lights) {
     
 	int i;
-	Vector light_Ro[3];
-    Vector light_Rd[3];
+	Vector light_Ro = {0,0,0};
+    Vector light_Rd = {0,0,0};
     
     // finding light rays Ro and Rd
     VectorScale(Rd, objDistance, light_Ro);
@@ -239,7 +239,7 @@ void computeIlluminationColor(Vector *Ro, Vector *Rd, int objIndex, double objDi
     
     for (i=0; lights[i].color != NULL; i++) {
         
-		double normal[3] = [0,0,0], diffuseTemp[3] = [0,0,0], specularTemp[3] = [0,0,0];
+		double normal[3] = {0,0,0}, diffuseTemp[3] = {0,0,0}, specularTemp[3] = {0,0,0};
 		int lightIndex = -1, counter =0;  
 		double lightDistance = INFINITY;
 		
@@ -282,12 +282,12 @@ void computeIlluminationColor(Vector *Ro, Vector *Rd, int objIndex, double objDi
            
             if (objects[objIndex].type == PLN) {
                 VectorCopy(objects[objIndex].data.plane.normal, normal);
-                VectorCopy(objects[objIndex].data.plane.diff_color, diffuseTemp);
-                VectorCopy(objects[objIndex].data.plane.spec_color, specularTemp);
+                VectorCopy(objects[objIndex].data.plane.diffuse_color, diffuseTemp);
+                VectorCopy(objects[objIndex].data.plane.specular_color, specularTemp);
             } else if (objects[objIndex].type == SPH) {
                 VectorSubstraction(light_Ro, objects[objIndex].data.sphere.position, normal);
-				VectorCopy(objects[objIndex].data.sphere.diff_color, diffuseTemp);
-                VectorCopy(objects[objIndex].data.sphere.spec_color, specularTemp);
+				VectorCopy(objects[objIndex].data.sphere.diffuse_color, diffuseTemp);
+                VectorCopy(objects[objIndex].data.sphere.specular_color, specularTemp);
             } else {
                 fprintf(stderr, "Error: not a valid object\n");
                 exit(1);
@@ -297,5 +297,40 @@ void computeIlluminationColor(Vector *Ro, Vector *Rd, int objIndex, double objDi
 }
 
 
+void calculateDiffuseColor(double *N, double *L, double *IL, double *KD, double *out_color) {
+    // K_a*I_a should be added to the beginning of this whole thing, which is a constant and ambient light
+    double n_dot_l = VectorDotProduct(N, L);
+    if (n_dot_l > 0) {
+        double diffuse_product[3];
+        diffuse_product[0] = KD[0] * IL[0];
+        diffuse_product[1] = KD[1] * IL[1];
+        diffuse_product[2] = KD[2] * IL[2];
+        // multiply by n_dot_l and store in out_color
+        VectorScale(diffuse_product, n_dot_l, out_color);
+    }
+    else {
+        // would normally return K_a*I_a here...
+        out_color[0] = 0;
+        out_color[1] = 0;
+        out_color[2] = 0;
+    }
+}
 
+void calculateSpecularColor(double ns, double *L, double *R, double *N, double *V, double *KS, double *IL, double *out_color) {
+    double v_dot_r = VectorDotProduct(L, R);
+    double n_dot_l = VectorDotProduct(N, L);
+    if (v_dot_r > 0 && n_dot_l > 0) {
+        double vr_to_the_ns = pow(v_dot_r, ns);
+        double spec_product[3];
+        spec_product[0] = KS[0] * IL[0];
+        spec_product[1] = KS[1] * IL[1];
+        spec_product[2] = KS[2] * IL[2];
+        VectorScale(spec_product, vr_to_the_ns, out_color);
+    }
+    else {
+        out_color[0] = 0;
+        out_color[1] = 0;
+        out_color[2] = 0;
+    }
+}
 

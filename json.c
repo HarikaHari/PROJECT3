@@ -451,12 +451,13 @@ void read_scene(const char* filename) {
                 fprintf(stderr, "Error:Expecting comma or ]: %d\n", line);
                 exit(1);
             }
-        }
-		 if (object_type == LITE) 
+        if (object_type == LITE) 
             lightCounter++;
         
         else
             counter++;
+		}
+		 
         
         c = next_c(json);
     }
