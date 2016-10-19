@@ -277,89 +277,151 @@ void read_scene(const char* filename) {
                     skip_ws(json);
 					double value;
                     if (strcmp(key, "width") == 0) {
+						if(object_type == CAM) {
 						value = next_number(json);
 						if(value >= 0) {
                         objects[counter].data.camera.width = value;
 						}
 						else {
-						fprintf(stderr, "Error: width cannot be less than zero %d\n", line);
+						fprintf(stderr, "Error: width cannot be negative %d\n", line);
+                         exit(1);
+						}
+						}
+						else {
+						fprintf(stderr, "Error: width cannot be applied to other object types than CAMERA %d\n", line);
                          exit(1);
 						}
                     }
                     else if (strcmp(key, "height") == 0) {
 						value = next_number(json);
+						if(object_type == CAM) {
 						if(value >= 0) {
                         objects[counter].data.camera.height = value;
 						}
 						else {
-						fprintf(stderr, "Error: height cannot be less than zero %d\n", line);
+						fprintf(stderr, "Error: height cannot be negative %d\n", line);
+                         exit(1);
+						}
+						}
+						else {
+						fprintf(stderr, "Error: height cannot be applied to other object types than CAMERA %d\n", line);
                          exit(1);
 						}
                     }
                     else if (strcmp(key, "radius") == 0) {
-						 if (object_type == SPH) {
+						if (object_type == SPH) {
                         value = next_number(json);
 						if(value >= 0) {
                         objects[counter].data.sphere.radius = value;
 						}
 						else {
-						fprintf(stderr, "Error: radius cannot be less than zero %d\n", line);
+						fprintf(stderr, "Error: radius cannot be negative %d\n", line);
                          exit(1);
 						}
 						}
 						 
 						 else {
-						 fprintf(stderr, "Error: radius can't be applied here: %d\n", line);
+						 fprintf(stderr, "Error: radius can't be applied to other object types than sphere: %d\n", line);
                             exit(1);
 						 }
                     }
 					 else if (strcmp(key, "radial-a0")==0){
                         value = next_number(json);
+						if (object_type == LITE) {
                         if(value >= 0) {
                             lights[lightCounter].radial_a0 = value;
                         }
                         else {
-						fprintf(stderr, "Error: radial-a0 cannot be less than zero: %d\n", line);
+						fprintf(stderr, "Error: radial-a0 cannot be negative: %d\n", line);
                             exit(1);
 						}
+						}
+						else {
+						 fprintf(stderr, "Error: radial-a0 can't be applied to other object types than LIGHT: %d\n", line);
+                            exit(1);
+						 }
                     }
                     else if (strcmp(key, "radial-a1")==0){
                         value = next_number(json);
-						 if(value >= 0) {
+						if (object_type == LITE) {
+						if(value >= 0) {
                              lights[lightCounter].radial_a1 = value;
                         }
                         else {
-						fprintf(stderr, "Error: radial-a1 cannot be less than zero: %d\n", line);
+						fprintf(stderr, "Error: radial-a1 cannot be negative: %d\n", line);
                             exit(1);
 						}
+						}
+						else {
+						 fprintf(stderr, "Error: radial-a1 can't be applied to other object types than LIGHT: %d\n", line);
+                            exit(1);
+						 }
                     }
                     else if (strcmp(key, "radial-a2")==0){
                         value = next_number(json);
-						 if(value >= 0) {
+						if (object_type == LITE) {
+						if(value >= 0) {
                              lights[lightCounter].radial_a2 = value;
                         }
                         else {
-						fprintf(stderr, "Error: radial-a2 cannot be less than zero: %d\n", line);
+						fprintf(stderr, "Error: radial-a2 cannot be negative: %d\n", line);
                             exit(1);
 						}
+						}
+						else {
+						 fprintf(stderr, "Error: radial-a2 can't be applied to other object types than LIGHT: %d\n", line);
+                            exit(1);
+						 }
 						
                     }
                     else if (strcmp(key, "angular-a0")==0){
                         value = next_number(json);
+						if (object_type == LITE) {
 						if(value >= 0) {
                              lights[lightCounter].angular_a0 = value;
                         }
                         else {
-						fprintf(stderr, "Error: angular_a0 cannot be less than zero: %d\n", line);
+						fprintf(stderr, "Error: angular_a0 cannot be negative: %d\n", line);
                             exit(1);
 						}
+						}
+						else {
+						 fprintf(stderr, "Error: angular-a0 can't be applied to other object types than LIGHT: %d\n", line);
+                            exit(1);
+						 }
+                    }
+					
+					else if (strcmp(key, "theta")==0){
+                        value = next_number(json);
+						if (object_type == LITE) {
+						if(value >= 0) {
+                             lights[lightCounter].theta = value;
+                        }
+                        else {
+						fprintf(stderr, "Error: theta cannot be negative: %d\n", line);
+                            exit(1);
+						}
+						}
+						else {
+						 fprintf(stderr, "Error: theta can't be applied to other object types than LIGHT: %d\n", line);
+                            exit(1);
+						 }
                     }
 					
 					 else if (strcmp(key, "color") == 0) {
                         if (object_type == LITE)
                             lights[lightCounter].color = parse_light_color(json);
                         else {
-                            fprintf(stderr, "Error: color vector can't be applied here: %d\n", line);
+                            fprintf(stderr, "Error: color vector can't be applied to other object types than LIGHT: %d\n", line);
+                            exit(1);
+                        }
+                    }
+					
+					else if (strcmp(key, "direction") == 0) {
+                        if (object_type == LITE)
+                            lights[lightCounter].direction = next_vector(json);
+                        else {
+                            fprintf(stderr, "Error: direction vector can't be applied to other object types than LIGHT: %d\n", line);
                             exit(1);
                         }
                     }
@@ -407,7 +469,7 @@ void read_scene(const char* filename) {
                     }
                     else if (strcmp(key, "normal") == 0) {
                         if (object_type != PLN) {
-                            fprintf(stderr, "Error: Normal vector can't be applied here: %d\n", line);
+                            fprintf(stderr, "Error: Normal vector can't be applied to other object types than Plane: %d\n", line);
                             exit(1);
                         }
                         else
@@ -416,7 +478,7 @@ void read_scene(const char* filename) {
                     
                     else if (strcmp(key, "coefficient") == 0) {
                         if (object_type != QUAD) {
-                            fprintf(stderr, "Error:  Normal vector can't be applied here: %d\n", line);
+                            fprintf(stderr, "Error:  Normal vector can't be applied to other object types than Quadrics: %d\n", line);
                             exit(1);
                         }
                         else

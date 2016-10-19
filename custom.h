@@ -59,6 +59,7 @@ typedef struct LIGHT{
     double radial_a0;
     double radial_a1;
     double radial_a2;
+	double theta;
     double angular_a0;
 }LIGHT;
 
