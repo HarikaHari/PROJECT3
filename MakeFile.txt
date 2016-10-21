@@ -1,2 +1,0 @@
-gcc raycast.c -lm
-./a.out 1000 1000 input.json output.ppm
