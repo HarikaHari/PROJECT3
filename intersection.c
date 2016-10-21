@@ -98,20 +98,21 @@ double sphereIntersection(double *Ro, double *Rd, double *pos, double r) {
     }
     
 }
-
+//function to calculate quadric types
 double quadricIntersection (double *Ro, double *Rd, double *pos, double *coefficient) {
 
     double a, b, c;
-    double t0,t1; 
+    double t; 
 		//calculating the coefficients of the equation. 
-	a = coefficient[0]*sqr(Rd[0]) + coefficient[1]*sqr(Rd[1]) + coefficient[2]*sqr(Rd[2]) + coefficient[3]*Rd[0]*Rd[1] +
-        coefficient[4]*Rd[0]*Rd[2] + coefficient[5]*Rd[1]*Rd[2]; 
-	b = 2*coefficient[0]*Ro[0]*Rd[0] + 2*coefficient[1]*Ro[1]*Rd[1] + 2*coefficient[2]*Ro[2]*Rd[2] + 
-		coefficient[3]*(Ro[0]*Rd[1] + Ro[1]*Rd[0]) + coefficient[4]*(Ro[0]*Rd[2] + Ro[2]*Rd[0]) + coefficient[5]*(Ro[1]*Rd[2] + Rd[1]*Ro[2]) + 
-		coefficient[6]*Rd[0] + coefficient[7]*Rd[1] + coefficient[8]*Rd[2];
-	c = coefficient[0]*sqr(Rd[0]) + coefficient[1]*sqr(Ro[1]) + coefficient[2]*sqr(Ro[2]) + 
-		coefficient[3]*Ro[0]*Ro[1] + coefficient[4]*Ro[0]*Ro[2] + coefficient[5]*Ro[1]*Ro[2] + 
-		coefficient[6]*Ro[0] + coefficient[7]*Ro[1] + coefficient[8]*Ro[2] + coefficient[9];
+a = (coefficient[0]) * sqr(Rd[0]) + (coefficient[1]) * sqr(Rd[1]) + (coefficient[2]) * sqr(Rd[2]) + (coefficient[3]) * (Rd[0]) * (Rd[1]) + (coefficient[4]) * (Rd[0]) * (Rd[2]) + (coefficient[5]) * (Rd[1]) * (Rd[2]);
+    
+    
+    b = 2*(coefficient[0]) * (Ro[0] - pos[0]) * (Rd[0]) + 2*(coefficient[1]) * (Ro[1] - pos[1]) * (Rd[1]) + 2*(coefficient[2]) * (Ro[2] - pos[2]) * (Rd[2]) + (coefficient[3]) * ((Ro[0] - pos[0]) * (Rd[1]) + (Ro[1] - pos[1]) * (Rd[0])) + (coefficient[4]) * (Ro[0] - pos[0]) * (Rd[2]) + (coefficient[5]) * ((Ro[1] - pos[1]) * (Rd[2]) + (Rd[1]) * (Ro[2] - pos[2])) + (coefficient[6]) * (Rd[0]) + (coefficient[7]) * (Rd[1]) + (coefficient[8]) * (Rd[2]);
+    
+   // printf("\n a : %lf ::: b : %lf ::: c : %lf ", a,b,c);
+    
+    c = (coefficient[0]) * sqr(Ro[0] - pos[0]) + (coefficient[1]) * sqr(Ro[1] - pos[1]) + (coefficient[2]) * sqr(Ro[2] - pos[2]) + (coefficient[3]) * (Ro[0] - pos[0]) * (Ro[1] - pos[1]) + (coefficient[4]) * (Ro[0] - pos[0]) * (Ro[2] - pos[2]) + (coefficient[5]) * (Ro[1] - pos[1]) * (Ro[2] - pos[2]) + (coefficient[6]) * (Ro[0] - pos[0]) + (coefficient[7]) * (Ro[1] - pos[1]) + (coefficient[8]) * (Ro[2] - pos[2]) + (coefficient[9]);
+		
 		
     if(a == 0)
 	 return (-c/b); 
@@ -121,31 +122,22 @@ double quadricIntersection (double *Ro, double *Rd, double *pos, double *coeffic
     if (d < 0) 
 	  return -1;  //no intersection since the det is imaginary 
     
-    else if (d == 0) {
-        t0 = -1*(b / (2*a));
-        t1 = -1*(b / (2*a));
-       }
+    else if (d == 0) 
+        t = -1*(b / (2*a));
+       
+       
     else {  
-        t0 = (( - b - sqrt(d))/(2*a));
-		t1 = (( - b + sqrt(d))/(2*a));
-		}
-        
-    if (t0 < 0 && t1 < 0) 
-        return -1;
-
-    else if (t0 < 0 && t1 > 0) 
-        return t1;
+    d = sqrt(d);
+    // Tests which is the closest one and in front of camera.
+    double t = (-b - d)/(2 * a);
+    if (t > 0) return t;
+    t = (-b + d)/(2 * a);
+    if (t > 0) return t;
     
-    else if (t0 > 0 && t1 < 0) 
-        return t0;
-    
-    else { 
-        if (t0 <= t1)
-            return t0;
-        else
-            return t1;
-    }		
-}
+    return -1;
+	}
+    }	
+	
 
 
 
