@@ -291,17 +291,22 @@ void computeIlluminationColor(Vector Ro, Vector Rd, int objIndex, double objDist
 				VectorCopy(objects[objIndex].data.sphere.diffuse_color, diffuseTemp);
                 VectorCopy(objects[objIndex].data.sphere.specular_color, specularTemp);
             } 
-			/*else if (objects[objIndex].type == QUAD) {
-                VectorCopy(objects[objIndex].quadric.diffuse_color,diffuseTemp);
-                VectorCopy(objects[objIndex].sphere.specular_color, specularTemp);
-                QUADRIC objects[objIndex];
-                Vector inter ={0,0,0};
-                computeQuadricNormal(normal,objects[objIndex], inter);
-            }*/
-			/*else {
+			else if (objects[objIndex].type == QUAD) {
+       
+                Vector temp ={0,0,0};
+		double *quad_coef = objects[objIndex].data.quadric.coefficients;
+		double *pos = objects[objIndex].data.quadric.position;
+        normal[0] =-2*quad_coef[0]*(pos[0])-quad_coef[3]*(pos[1])-quad_coef[4]*(pos[2])-quad_coef[6];
+	normal[1] =-2*quad_coef[1]*(pos[1])-quad_coef[3]*(pos[0])-quad_coef[5]*(pos[2])-quad_coef[7];
+	normal[2] =-2*quad_coef[2]*(pos[2])-quad_coef[4]*(pos[0])-quad_coef[5]*(pos[1])-quad_coef[8];
+	normalize(normal);
+	VectorCopy(objects[objIndex].data.quadric.diffuse_color,diffuseTemp);
+        VectorCopy(objects[objIndex].data.quadric.specular_color, specularTemp);
+            }
+	 else {
                 fprintf(stderr, "Error: not a valid object\n");
                 exit(1);
-            }*/
+            }
 			
 			
 			
