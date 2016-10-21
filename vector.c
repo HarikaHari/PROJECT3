@@ -21,6 +21,13 @@ void vectorUnit(Vector a, Vector b){
     
 }
 
+double vectorDistance(Vector a, double *b) {
+	 double x =  sqr(a[0] - b[0]);
+	 double y =	 sqr(a[1] - b[1]);
+	 double z =  sqr(a[2] - b[2]);
+	 return sqrt(x+y+z);
+}
+
 void VectorAddition(Vector a, Vector b, Vector c){
     c[0] = a[0] + b[0];
     c[1] = a[1] + b[1];

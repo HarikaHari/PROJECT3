@@ -6,7 +6,8 @@
 #include "custom.h"
 #include "vector.c"
 #include "ppm.c"
-
+Vector diffuseColor = {0,0,0},specularColor = {0,0,0};
+double pixelColor[3] = {0,0,0};
 //Returns the position of camera object from the JSON file
 int getCameraPosition(OBJECT *objects){
     int i=0;
@@ -16,6 +17,10 @@ int getCameraPosition(OBJECT *objects){
         }
         i++;
     }
+	 if (i == ObjectsCount) {
+        fprintf(stderr, "Error: No Camera object is found to raycast \n");
+        exit(1);
+    }
     return -1;
 }
 
@@ -24,9 +29,9 @@ int getCameraPosition(OBJECT *objects){
 
 void colorPixel(double *color, int row, int col,Image *image){
  //store results in image->data which store pixels
-    image->data[row * image->width*4 + col*4] = (char)color[0];
-    image->data[row * image->width*4 + col*4+1] = (char)color[1];
-    image->data[row * image->width*4 + col*4+2]= (char)color[2];
+    image->data[row * image->width*4 + col*4] = (char) (MAX_COLOR_VAL * color[0]);
+    image->data[row * image->width*4 + col*4+1] = (char)(MAX_COLOR_VAL * color[1]);
+    image->data[row * image->width*4 + col*4+2]= (char)(MAX_COLOR_VAL * color[2]);
     image->data[row * image->width*4 + col*4+3]= 255;
 
 }
@@ -54,20 +59,14 @@ double planeIntersection(double *Ro, double *Rd, double *Pos, double *Norm){
     return t; 
 	}
 
-double sphereIntersection(double *Ro, double *Rd, double *pos, double r){
+double sphereIntersection(double *Ro, double *Rd, double *pos, double r) {
 
     double a, b, c;
     double t0,t1; 
-	//calculating the coefficients of the equation. 
+	//calculating the coefficients of the sphere equation. 
     a = sqr(Rd[0]) + sqr(Rd[1]) + sqr(Rd[2]);
     b = 2 * (Rd[0]*(Ro[0]-pos[0]) + Rd[1]*(Ro[1]-pos[1]) + Rd[2]*(Ro[2]-pos[2]));
     c = sqr(Ro[0]-pos[0]) + sqr(Ro[1]-pos[1]) + sqr(Ro[2]-pos[2]) - sqr(r);
-    
-    if (a > 1.0001 || a < .9999) {
-        printf("a = %lf\n", a);
-        fprintf(stderr, "Ray direction was not normalized\n");
-        exit(1);
-    }
 	//calculate the determinant value to get the point of intersection
     double d = sqr(b) - 4*a*c;
     
@@ -79,10 +78,9 @@ double sphereIntersection(double *Ro, double *Rd, double *pos, double r){
         t1 = -1*(b / (2*a));
        }
     else {  
-        t0 = (-1*b - sqrt(sqr(b) - 4*c))/2;
-        t1 = (-1*b + sqrt(sqr(b) - 4*c))/2;
-    }
-        
+        t0 = (-1*b - sqrt(d))/2;
+        t1 = (-1*b + sqrt(d))/2;
+    }        
     if (t0 < 0 && t1 < 0) 
         return -1;
 
@@ -149,105 +147,106 @@ double quadricIntersection (double *Ro, double *Rd, double *pos, double *coeffic
     }		
 }
 
-void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *objects, LIGHT *lights) {
-   
-    int x, y, counter; 
-    
-    Vector viewPlanePosition= {0,0,1}; //view plane position
-    Vector Ro = {0,0,0}; //Camera position
-	Vector Rd = {0,0,0}; // ray direction
-    Vector point = {0,0,0}; //initial point on view plane
-    
-    double pixheight = cameraHeight / image->height;
-    double pixwidth = cameraWidth / image->width;
-    
-   
-    point[2] = viewPlanePosition[2]; // set viewplane to Z direction
-    
-    for(x=0;x<image->height;x++){
-        point[1] = -(viewPlanePosition[1] - cameraHeight/2.0 + pixheight*(x + 0.5)); 
-        for (y=0; y<image->width; y++) {
-             point[0] = viewPlanePosition[0] - cameraWidth/2.0 + pixwidth*(y + 0.5);
-            normalize(point);  
-            Rd[0] = point[0];
-            Rd[1] = point[1];
-            Rd[2] = point[2];
-            
-            int objIndex =0;
-            double objDistance = INFINITY;
-            for (counter=0; objects[counter].type!=0; counter++) {
-                double t =0;
-                switch (objects[counter].type) {
-                    case 0:
-                        printf("no object found\n");
-                        break;
-                        
-                    case CAM:
-                        break;
-                        
-                    case SPH:
-                        t = sphereIntersection(Ro, Rd, objects[counter].data.sphere.position, objects[counter].data.sphere.radius);
-                        break;
-                        
-                    case PLN:
-                        t = planeIntersection(Ro, Rd, objects[counter].data.plane.position, objects[counter].data.plane.normal);
-                        break;
-						
-					case QUAD:
-                        t = quadricIntersection(Ro, Rd, objects[counter].data.quadric.position, objects[counter].data.quadric.coefficients);
-                        break;
-                        
-                    default:
-                        exit(1);
-                }
-                if (t > 0 && t < objDistance) {
-                    objDistance = t;
-                    objIndex = counter;
-                }
-                
-            }
-			  // use this to compute the final color of the pixel	
-			 double pixelColor[3] = {0,0,0};
-			 
-            if (objDistance > 0 && objDistance != INFINITY) {
-				//there is an intersection and applying color to the intersection pixel
-               computeIlluminationColor(Ro, Rd, objIndex, objDistance, pixelColor, objects, lights);
-               colorPixel(pixelColor, x, y, image); 
-            }
-            else{
-			//colouring the pixel to default color since there was no intersection
-                Vector defaultColor ={1,1,1};
-                colorPixel(defaultColor,x,y,image);
-            }
-            
-        }
+
+
+double getRadialAttenuation(LIGHT *light, double distance) {
+	//check if the light distance is infinity
+	if(distance == INFINITY) {
+		return 1.0;
+	}
+	//check if denominator is zero to remove divide by zero exception
+    if (light->radial_a0 == 0 && light->radial_a1 == 0 && light->radial_a2 == 0) {
+        return 1.0;
     }
+    return 1.0 / (light->radial_a2 * sqr(distance) + light->radial_a1 * distance + light->radial_a1);
+}
+
+double getAngularAttenuation(LIGHT *light, Vector objDir) {
+
+	//check if the light type is spot lights
+	if (!(light->theta || light->theta == 0)) {
+	if (light->direction == NULL) {
+        fprintf(stderr, "Error: direction vector cant be NULL for spotlight\n");
+        exit(1);
+    }
+    //use pi/180 to calculate the cosine angle value
+    double cosineOfTheta = cos(light->theta * (M_PI / 180));
+	//Vobject and Vlight dot product
+    double VobjdotVlight = VectorDotProduct(objDir,light->direction);
+    if (VobjdotVlight < cosineOfTheta){
+        return 0.0;
+    }
+    return pow(VobjdotVlight, light->angular_a0);
+	}
+	else return 1.0; //return for point light
+}
+
+void calculateDiffuseColor(double *N, double *L, double *IL, double *KD) {
     
+    double ndotl = VectorDotProduct(N, L);
+    if (ndotl > 0) {
+        double temp[3];
+        temp[0] = KD[0] * IL[0];
+        temp[1] = KD[1] * IL[1];
+        temp[2] = KD[2] * IL[2];
+        VectorScale(temp, ndotl, diffuseColor);
+    }
 }
 
 
+void calculateSpecularColor(double *R, double *V, double *KS, double *IL, double ns) {
+    
+   double vdotr = VectorDotProduct(V, R);
+    if (vdotr > 0) {
+        double vrpowns = pow(vdotr, ns);
+        Vector temp;
+        temp[0] = KS[0] * IL[0];
+        temp[1] = KS[1] * IL[1];
+        temp[2] = KS[2] * IL[2];
+        VectorScale( temp, vrpowns,specularColor );
+    }
+}
+void initializePixelColors() {
+   specularColor[0]  = 0;
+   diffuseColor[0] = 0;
+   pixelColor[0] = 0;
+   specularColor[1]  = 0;
+   diffuseColor[1] = 0;
+   pixelColor[1] = 0;
+   specularColor[2]  = 0;
+   diffuseColor[2] = 0;
+   pixelColor[2] = 0;
+}
+
 //calculate the color of objects with illumination
-void computeIlluminationColor(Vector Ro, Vector Rd, int objIndex, double objDistance, double *pixelColor, OBJECT *objects, LIGHT *lights) {
+void computeIlluminationColor(Vector Ro, Vector Rd, int objIndex, double objDistance, OBJECT *objects, LIGHT *lights) {
     
 	int i;
 	Vector light_Ro = {0,0,0};
     Vector light_Rd = {0,0,0};
     
-    // finding light rays Ro and Rd
+    // finding light rays origin Ro and dir Rd vectors
     VectorScale(Rd, objDistance, light_Ro);
     VectorAddition(light_Ro, Ro, light_Ro);
     
     for (i=0; lights[i].color != NULL; i++) {
         
-		double normal[3] = {0,0,0}, diffuseTemp[3] = {0,0,0}, specularTemp[3] = {0,0,0};
-		int lightIndex = -1, counter =0;  
-		double lightDistance = INFINITY;
+	double normal[3] = {0,0,0}, diffuseTemp[3] = {0,0,0}, specularTemp[3] = {0,0,0};	
+	int lightIndex = -1, counter =0;  
+	double distance = INFINITY;
 		
         // find new ray direction
         VectorSubstraction(lights[i].position, light_Ro, light_Rd);
-        double distance = vectorLength(light_Rd);       
+		Vector tempRd;
+		Vector intersection;		
+		VectorScale(Rd, objDistance, tempRd);
+		VectorAddition(Ro, tempRd, intersection);
+		double lightDistance = vectorDistance(intersection, lights[i].position);	
+
+	normalize(light_Rd);
         
             for (counter=0; objects[counter].type!=0; counter++) {
+			if (objIndex == counter) continue;
                 double t =0;
                 switch (objects[counter].type) {
                     case 0:
@@ -273,64 +272,160 @@ void computeIlluminationColor(Vector Ro, Vector Rd, int objIndex, double objDist
                         exit(1);
                 }
                 if (t > 0 && t < lightDistance) {
-                    lightDistance = t;
+                    distance = t;
                     lightIndex = counter;
                 }
 			}
          // start of shadow test
-        if (lightIndex == -1) {
-           
+	
+	 if (lightIndex == -1) {
+
             if (objects[objIndex].type == PLN) {
                 VectorCopy(objects[objIndex].data.plane.normal, normal);
                 VectorCopy(objects[objIndex].data.plane.diffuse_color, diffuseTemp);
-                VectorCopy(objects[objIndex].data.plane.specular_color, specularTemp);
-            } else if (objects[objIndex].type == SPH) {
+				if(!(objects[objIndex].data.plane.specular_color)) 
+                VectorCopy(objects[objIndex].data.plane.specular_color, specularTemp);	
+            }
+			else if (objects[objIndex].type == SPH) {
                 VectorSubstraction(light_Ro, objects[objIndex].data.sphere.position, normal);
 				VectorCopy(objects[objIndex].data.sphere.diffuse_color, diffuseTemp);
                 VectorCopy(objects[objIndex].data.sphere.specular_color, specularTemp);
-            } else {
+            } 
+			/*else if (objects[objIndex].type == QUAD) {
+                VectorCopy(objects[objIndex].quadric.diffuse_color,diffuseTemp);
+                VectorCopy(objects[objIndex].sphere.specular_color, specularTemp);
+                QUADRIC objects[objIndex];
+                Vector inter ={0,0,0};
+                computeQuadricNormal(normal,objects[objIndex], inter);
+            }*/
+			/*else {
                 fprintf(stderr, "Error: not a valid object\n");
                 exit(1);
+            }*/
+			
+			
+			
+			//variables to start and read angular and radial attenuation 
+			double fang,frad;
+			Vector objectToLightVector;
+			VectorSubstraction(intersection,lights[i].position,objectToLightVector);
+			normalize(objectToLightVector);
+			frad = getRadialAttenuation(&lights[i], lightDistance);
+			fang = getAngularAttenuation(&lights[i], objectToLightVector);
+		
+            //using vectors specified by DR Palmer to calculate diffuse and specular colors
+	    Vector L,R,V;
+            VectorCopy(light_Rd, L);
+	    normalize(normal);	
+            normalize(L);
+            VectorReflection(L, normal, R);
+            VectorCopy(Rd, V);
+            calculateDiffuseColor(normal, L, lights[i].color, diffuseTemp);
+	     //To caluculate specular color set ns to 20
+            calculateSpecularColor(R, V, specularTemp, lights[i].color, 20);
+
+            pixelColor[0] += frad*fang*(specularColor[0] + diffuseColor[0]);
+            pixelColor[1] += frad*fang*(specularColor[1] + diffuseColor[1]);
+            pixelColor[2] += frad*fang*(specularColor[2] + diffuseColor[2]);
+	}
+    }
+}
+
+
+
+void computePixelColor(double *pixelColor) {
+	int i;
+	for(i = 0; i<3; i++) {
+	
+	if (pixelColor[i] < 0) 
+		pixelColor[i] = 0;		
+				
+	else if (pixelColor[i] > 1) 
+		pixelColor[i] = 1;
+	}        
+}
+
+
+void raycast(Image *image, double cameraWidth, double cameraHeight, OBJECT *objects, LIGHT *lights) {
+   
+    int x, y, counter; 
+    
+    Vector viewPlanePosition= {0,0,1}; //view plane position
+    Vector Ro = {0,0,0}; //Camera position
+	Vector Rd = {0,0,0}; // ray direction
+    Vector point = {0,0,0}; //initial point on view plane
+    
+    double pixheight = cameraHeight / image->height;
+    double pixwidth = cameraWidth / image->width;
+    
+   
+     // set viewplane to Z direction
+    
+    for(x=0;x<image->height;x++){
+        
+        for (y=0; y<image->width; y++) {
+		     
+             point[0] = viewPlanePosition[0] - cameraWidth/2.0 + pixwidth*(y + 0.5);
+			 point[1] = -(viewPlanePosition[1] - cameraHeight/2.0 + pixheight*(x + 0.5)); 
+			 point[2] = viewPlanePosition[2];
+            normalize(point); 		
+            Rd[0] = point[0];
+            Rd[1] = point[1];
+            Rd[2] = point[2];
+            
+            int objIndex =0;
+            double objDistance = INFINITY;
+            for (counter=0; objects[counter].type!=0; counter++) {
+                double t =0;
+                switch (objects[counter].type) {
+                    case 0:
+                        printf("no object found\n");
+                        break;
+                        
+                    case CAM:
+                        break;
+                        
+                    case SPH:
+                        t = sphereIntersection(Ro, Rd, objects[counter].data.sphere.position, objects[counter].data.sphere.radius);
+						break;
+                        
+                    case PLN:
+                        t = planeIntersection(Ro, Rd, objects[counter].data.plane.position, objects[counter].data.plane.normal);
+                        break;
+						
+					case QUAD:
+                        t = quadricIntersection(Ro, Rd, objects[counter].data.quadric.position, objects[counter].data.quadric.coefficients);
+                        break;
+                        
+                    default:
+                        exit(1);
+                }
+                if (t > 0 && t < objDistance) {
+		//printf("\n objects[counter].type %d %lf",objects[counter].type,t);
+                    objDistance = t;
+                    objIndex = counter;
+                }
+                
             }
+			
+
+			  // use this to compute the final color of the pixel	
+			initializePixelColors();
+			 
+            if (objDistance > 0 && objDistance != INFINITY) {
+				//there is an intersection and applying color to the intersection pixel
+			   computeIlluminationColor(Ro, Rd, objIndex, objDistance, objects, lights);
+			   computePixelColor(pixelColor);
+			   colorPixel(pixelColor, x, y, image); 
+            }
+            else{
+			//colouring the pixel to default color since there was no intersection
+                Vector defaultColor ={0,0,0};
+                colorPixel(defaultColor,x,y,image);
+            }
+            
         }
     }
-}
-
-
-void calculateDiffuseColor(double *N, double *L, double *IL, double *KD, double *out_color) {
-    // K_a*I_a should be added to the beginning of this whole thing, which is a constant and ambient light
-    double n_dot_l = VectorDotProduct(N, L);
-    if (n_dot_l > 0) {
-        double diffuse_product[3];
-        diffuse_product[0] = KD[0] * IL[0];
-        diffuse_product[1] = KD[1] * IL[1];
-        diffuse_product[2] = KD[2] * IL[2];
-        // multiply by n_dot_l and store in out_color
-        VectorScale(diffuse_product, n_dot_l, out_color);
-    }
-    else {
-        // would normally return K_a*I_a here...
-        out_color[0] = 0;
-        out_color[1] = 0;
-        out_color[2] = 0;
-    }
-}
-
-void calculateSpecularColor(double ns, double *L, double *R, double *N, double *V, double *KS, double *IL, double *out_color) {
-    double v_dot_r = VectorDotProduct(L, R);
-    double n_dot_l = VectorDotProduct(N, L);
-    if (v_dot_r > 0 && n_dot_l > 0) {
-        double vr_to_the_ns = pow(v_dot_r, ns);
-        double spec_product[3];
-        spec_product[0] = KS[0] * IL[0];
-        spec_product[1] = KS[1] * IL[1];
-        spec_product[2] = KS[2] * IL[2];
-        VectorScale(spec_product, vr_to_the_ns, out_color);
-    }
-    else {
-        out_color[0] = 0;
-        out_color[1] = 0;
-        out_color[2] = 0;
-    }
+    
 }
 

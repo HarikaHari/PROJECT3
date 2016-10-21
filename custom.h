@@ -105,11 +105,11 @@ double planeIntersection(double *Ro, double *Rd, double *Pos, double *Norm);
 double sphereIntersection(double *Ro, double *Rd, double *C, double r);
 double quadricIntersection (double *Ro, double *Rd, double *pos, double *coefficient);
 void raycast(Image *image, double cam_width, double cam_height, OBJECT *objects, LIGHT *lights);
-void computeIlluminationColor(Vector Ro, Vector Rd, int objIndex, double objDistance, double *pixelColor, OBJECT *objects, LIGHT *lights);
 
 //member functions for vector calculations
 double sqr(double v);
 double vectorLength(Vector a);
+double vectorDistance(Vector a, double *b);
 void VectorAddition(Vector a, Vector b, Vector c);
 void VectorSubstraction(Vector a, Vector b, Vector c);
 void VectorCopy(Vector a, Vector b);

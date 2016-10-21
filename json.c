@@ -126,7 +126,7 @@ double* parse_light_color(FILE* json) {
     skip_ws(json);
     expect_c(json, '[');
     skip_ws(json);
-    v[0] =  next_number(json);
+    v[0] = next_number(json);
     skip_ws(json);
     expect_c(json, ',');
     skip_ws(json);
@@ -394,13 +394,13 @@ void read_scene(const char* filename) {
 					else if (strcmp(key, "theta")==0){
                         value = next_number(json);
 						if (object_type == LITE) {
-						if(value >= 0) {
+						//if(value >= 0) {
                              lights[lightCounter].theta = value;
-                        }
-                        else {
-						fprintf(stderr, "Error: theta cannot be negative: %d\n", line);
-                            exit(1);
-						}
+                       // }
+                       // else {
+						//fprintf(stderr, "Error: theta cannot be negative: %d\n", line);
+                       //    exit(1);
+						//}
 						}
 						else {
 						 fprintf(stderr, "Error: theta can't be applied to other object types than LIGHT: %d\n", line);
